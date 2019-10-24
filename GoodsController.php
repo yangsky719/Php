@@ -10,46 +10,47 @@ class GoodsController extends AppController
 {
     public function preOrder()
     {
-      //获取商品名称
-      $goodsname=$this->request->getData('商品');
-      //获取商品订购数量
-      $quantity =$this->request->getData('数量');
-    
       try{
+        //获取商品名称
+        $goodsname_id=$this->request->getData('商品id');
+        //获取商品订购数量
+        $quantity =$this->request->getData('数量');
+    
+    
             //
             $conn =ConnectionManager::get('default');
             
-            $results = $conn->execute('select * from traning_goods where name=:name and stock >= :stock',
-                            ['name'=>$goodsname,'stock'=>$quantity])
+            $results = $conn->execute('select id,stock from traning_goods where name=:name and stock >= :stock',
+                            ['id'=>$goodsname_id,'stock'=>$quantity])
                             ->fetchAll('assoc');
             
 
             
 
-            $returns=array();
+            $result=[];
 
             if(count($results)==1)
             {
                 //可以订购
                 //事务开始
-                $Order_Num=null;
+                $order_num=null;
 
                 $conn->begin();
 
                 //扣掉对应商品库存
                 $conn->update('traning_goods', 
                              ['stock' => ($results[0]['stock']- $quantity) ],
-                             ['name' => $goodsname]);
+                             ['id' => $goodsname_id]);
 
                 //生成订单记录
-                $Order_Num=date("YmdHis");
+                $order_num=date("YmdHis");
                 $conn->insert('traning_order',
                              [
-                                    'order_num' => $Order_Num,
+                                    'order_num' => $order_num,
                                     'goods_id' => $results[0]['id'],
                                     'quantity' => $quantity,
-                                    'created_at' => 0,
-                                    'updated_at' => 0
+                                    'created_at' => time(),
+                                    'updated_at' => time(),
                              ]
 
                 );
@@ -57,10 +58,10 @@ class GoodsController extends AppController
                 //提交事务
                 $conn->commit();
 
-                $returns = array(
+                $result = array(
                     'error_code' => 0,
                     'data' => array(
-                        'order' => $Order_Num
+                        'order' => $order_num
                     )
                 );
                 
@@ -69,7 +70,7 @@ class GoodsController extends AppController
                 
             }else{
                 //库存不足
-                $returns = array(
+                $result = array(
                     'error_code' => 1,
                     'data' => array(
                         
@@ -79,7 +80,7 @@ class GoodsController extends AppController
                 );
             }
 
-            $this->set('returns',$returns);
+            $this->set('result',$result);
     }
     catch(Exception $e)
     {
