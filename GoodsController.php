@@ -16,7 +16,15 @@ class GoodsController extends AppController
         //获取商品订购数量
         $quantity =$this->request->getData('数量');
     
-    
+            $redis = new Redis();#伪代码
+            $rand_hash = randStr();#伪代码，生成一个随机字符串，用于判断锁是否属于本线程
+            $redis->setnx("OrderLock", $rand_hash);#redis锁，依赖于setnx命令的原子性；假设有其他线程正在加锁，此处会保持等待
+            $redis->expire("OrderLock", 5);#！非常重要！兜底机制，释放锁，防止死锁问题
+            $lock = $redis->get("OrderLock");
+            if ($lock === $rand_hash){//若判断通过，则证明当前加锁成功
+                #可以进行下单
+                $redis->del("OrderLock");#若下单成功，则主动释放锁
+            }
             //
             $conn =ConnectionManager::get('default');
             $conn->begin();
@@ -86,6 +94,9 @@ class GoodsController extends AppController
     catch(Exception $e)
     {
         throw new InternalErrorException('错误:'.$e->getMessage());
+    }
+    finally{
+        $redis->del("OrderLock");#下单失败，也释放锁
     }
 
 
