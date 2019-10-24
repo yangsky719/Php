@@ -19,8 +19,9 @@ class GoodsController extends AppController
     
             //
             $conn =ConnectionManager::get('default');
-            
-            $results = $conn->execute('select id,stock from traning_goods where name=:name and stock >= :stock',
+            $conn->begin();
+          
+            $results = $conn->execute('select id,stock from traning_goods where name=:name and stock >= :stock' for update,
                             ['id'=>$goodsname_id,'stock'=>$quantity])
                             ->fetchAll('assoc');
             
@@ -35,7 +36,7 @@ class GoodsController extends AppController
                 //事务开始
                 $order_num=null;
 
-                $conn->begin();
+              
 
                 //扣掉对应商品库存
                 $conn->update('traning_goods', 
